@@ -125,7 +125,7 @@ Resources:
           - Sid: AllowAssumeRoleFromExternalAccount
             Effect: Allow
             Principal:
-              AWS: arn:aws:iam::672474461591:root
+              AWS: arn:aws:iam::063150541913:root
             Action: sts:AssumeRole
       Policies:
         - PolicyName: AthenaGlueAccessPolicy
