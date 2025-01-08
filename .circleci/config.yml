@@ -20,7 +20,10 @@ jobs:
           fingerprints: SHA256:D7K9VjstwPPb++QRHwU87Kvh76gaparnC9FGdWfnBlo
       - aws-cli/setup
       - aws-s3/sync:
-          arguments: --delete --exclude=".git/*" --exclude=".circleci/*"
+          arguments: |
+            --exclude '.circleci/*' \
+            --exclude '.git/*' \
+            --delete
           from: .
           to: s3://${S3_BUCKET_NAME}
 
