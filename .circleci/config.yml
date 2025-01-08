@@ -20,7 +20,7 @@ jobs:
           fingerprints: SHA256:D7K9VjstwPPb++QRHwU87Kvh76gaparnC9FGdWfnBlo
       - aws-cli/setup
       - aws-s3/sync:
-          arguments: >
+          arguments: |
             --delete \
             --exclude '.git/*' --exclude '.circleci/*'
           from: .
