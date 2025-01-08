@@ -21,8 +21,8 @@ jobs:
       - aws-cli/setup
       - aws-s3/sync:
           arguments: --delete
-          from: /
-          to: s3://${S3_BUCKET_NAME}/
+          from: .
+          to: s3://${S3_BUCKET_NAME}
 
 workflows:
   deploy-main:
