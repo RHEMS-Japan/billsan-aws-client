@@ -19,13 +19,17 @@ jobs:
       - add_ssh_keys:
           fingerprints: SHA256:D7K9VjstwPPb++QRHwU87Kvh76gaparnC9FGdWfnBlo
       - aws-cli/setup
-      - aws-s3/sync:
-          arguments: |
-            --delete \
-            --exclude .git/* \
-            --exclude .circleci/*
-          from: .
-          to: s3://${S3_BUCKET_NAME}
+      - run:
+          name: aws s3 sync
+          command: |
+            aws s3 sync . s3://${S3_BUCKET_NAME} --delete --exclude ".git/*" --exclude ".circleci/*"
+      # - aws-s3/sync:
+      #     arguments: 
+      #       --delete \
+      #       --exclude .git/* \
+      #       --exclude .circleci/*
+      #     from: .
+      #     to: s3://${S3_BUCKET_NAME}
 
 workflows:
   deploy-main:
