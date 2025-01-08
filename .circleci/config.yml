@@ -21,8 +21,8 @@ jobs:
       - aws-cli/setup
       - aws-s3/sync:
           arguments: >
-            --delete
-            --exclude ".git/*"
+            --delete \
+            --exclude ".git/*" \
             --exclude ".circleci/*"
           from: .
           to: s3://${S3_BUCKET_NAME}
