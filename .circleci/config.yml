@@ -26,8 +26,7 @@ jobs:
             --exclude ".git/*"
             --exclude ".circleci"
             --exclude ".circleci/*"
-            --exclude ".test"
-            --exclude ".test/test.text"
+            --exclude "test/test.text"
           from: .
           to: s3://${S3_BUCKET_NAME}
 
