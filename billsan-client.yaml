@@ -85,7 +85,7 @@ Resources:
   DataExportBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub billsan-${AWS::AccountId}
+      BucketName: !Sub billsan-aws-${AWS::AccountId}
       PublicAccessBlockConfiguration:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
@@ -372,7 +372,7 @@ Resources:
       - LambdaCOHServiceLinkedRoleExec
     Properties:
       Export:
-        Name: !Sub billsan-${AWS::AccountId}-optimization-parquet
+        Name: !Sub billsan-aws-${AWS::AccountId}-optimization-parquet
         DataQuery:
           QueryStatement: !FindInMap [DataExports, COH, DefaultQuery]
           TableConfigurations:
@@ -401,7 +401,7 @@ Resources:
       - LambdaCOHServiceLinkedRoleExec
     Properties:
       Export:
-        Name: !Sub billsan-${AWS::AccountId}-optimization-csv
+        Name: !Sub billsan-aws-${AWS::AccountId}-optimization-csv
         DataQuery:
           QueryStatement: !FindInMap [DataExports, COH, DefaultQuery]
           TableConfigurations:
@@ -432,7 +432,7 @@ Resources:
     DependsOn: S3BucketPolicy
     Properties:
       Export:
-        Name: !Sub billsan-${AWS::AccountId}-focus-parquet
+        Name: !Sub billsan-aws-${AWS::AccountId}-focus-parquet
         RefreshCadence:
           Frequency: SYNCHRONOUS
         DataQuery:
@@ -455,7 +455,7 @@ Resources:
     Type: AWS::BCMDataExports::Export
     Properties:
       Export:
-        Name: !Sub billsan-${AWS::AccountId}-focus-csv
+        Name: !Sub billsan-aws-${AWS::AccountId}-focus-csv
         RefreshCadence:
           Frequency: SYNCHRONOUS
         DataQuery:
@@ -507,7 +507,7 @@ Resources:
               Format: PARQUET
               Compression: PARQUET
               OutputType: CUSTOM
-        Name: !Sub billsan-${AWS::AccountId}-cur2-parquet
+        Name: !Sub billsan-aws-${AWS::AccountId}-cur2-parquet
         RefreshCadence:
           Frequency: SYNCHRONOUS
   #15 Deploy Data Export for CUR 2.0 CSV
@@ -538,6 +538,6 @@ Resources:
               Format: TEXT_OR_CSV
               Compression: GZIP
               OutputType: CUSTOM
-        Name: !Sub billsan-${AWS::AccountId}-cur2-csv
+        Name: !Sub billsan-aws-${AWS::AccountId}-cur2-csv
         RefreshCadence:
           Frequency: SYNCHRONOUS
