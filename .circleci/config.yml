@@ -6,8 +6,6 @@ orbs:
   rj-package: rhems-japan/package@0.0.81
 
 main-filter: &main-filter
-  context:
-    - billsan-aws-main
   filters:
     branches:
       only: main
@@ -19,24 +17,12 @@ jobs:
     steps:
       - checkout
       - add_ssh_keys:
-          fingerprints: -------------------------
+          fingerprints: SHA256:D7K9VjstwPPb++QRHwU87Kvh76gaparnC9FGdWfnBlo
       - aws-cli/setup
       - aws-s3/sync:
           arguments: --delete
           from: /
           to: s3://${S3_BUCKET_NAME}/
-      - run:
-          name: purge
-          command: aws cloudfront create-invalidation --distribution-id ${CF_DISTRIBUTION_ID} --paths "/*"
-      - when:
-          condition:
-            or:
-              - equal: [ main, << pipeline.git.branch >> ]
-          steps:
-            - rj-package/create-badge:
-                app: billsan-aws
-                color: green
-                text: ${CIRCLE_BRANCH}
 
 workflows:
   deploy-main:
