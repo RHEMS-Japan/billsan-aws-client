@@ -1,0 +1,125 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  CloudFormation Template to set up Athena, Glue Crawler
+
+Parameters:
+  CrossAccountS3Bucket:
+    Type: String
+    Description: The ARN of the cross-account S3 bucket
+
+  CrossAccountS3BucketPath:
+    Type: String
+    Default: ""
+    Description: s3 buckets directory path
+  
+  QueryResultBucket:
+    Type: String
+    Description: The S3 bucket to store Athena query results
+
+  AthenaCrossAccountRoleName:
+    Type: String
+    Description: The ARN of the cross-account Athena role name
+
+
+Conditions:
+  IsEmptyFolderPath: !Equals [!Ref CrossAccountS3BucketPath, '']
+
+
+Resources:
+  AthenaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref AthenaCrossAccountRoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - athena.amazonaws.com
+                - glue.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub "${AthenaCrossAccountRoleName}Policy"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:aws:s3:::${CrossAccountS3Bucket}"
+                  - !Sub "arn:aws:s3:::${CrossAccountS3Bucket}/*"
+              - Effect: Allow
+                Action:
+                  - glue:GetDatabase
+                  - glue:GetTable
+                  - glue:GetTables
+                  - glue:GetPartitions
+                  - glue:BatchGetPartition
+                  - glue:BatchCreatePartition
+                  - glue:CreateTable
+                  - glue:UpdateTable
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+  # Glue Database
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: !Sub "${CrossAccountS3Bucket}_db"
+        Description: "Database for cross account s3 bucket data"
+
+  # Glue Crawler
+  GlueCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Name: !Sub "${CrossAccountS3Bucket}_crawler"
+      Role: !GetAtt AthenaExecutionRole.Arn
+      DatabaseName: !Ref GlueDatabase
+      Targets:
+        S3Targets:
+          - Path: !Sub
+              - "${IfPath}"
+              - IfPath: !If [IsEmptyFolderPath, !Sub "s3://${CrossAccountS3Bucket}/", !Sub "s3://${CrossAccountS3Bucket}/${CrossAccountS3BucketPath}/"]
+      TablePrefix: !Sub "${CrossAccountS3Bucket}_"
+      SchemaChangePolicy:
+        UpdateBehavior: "UPDATE_IN_DATABASE"
+        DeleteBehavior: "LOG"
+
+  # Athena WorkGroup
+  AthenaWorkGroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: !Sub "${CrossAccountS3Bucket}_work_group"
+      WorkGroupConfiguration:
+        ResultConfiguration:
+          OutputLocation: !Sub "s3://${QueryResultBucket}/athena-query-results-${CrossAccountS3Bucket}/"
+        EnforceWorkGroupConfiguration: true
+        PublishCloudWatchMetricsEnabled: true
+
+Outputs:
+  AthenaExecutionRoleArn:
+    Description: "ARN of the Athena Execution Role"
+    Value: !GetAtt AthenaExecutionRole.Arn
+
+  GlueDatabaseName:
+    Description: "Glue Database Name"
+    Value: !Ref GlueDatabase
+
+  GlueCrawlerName:
+    Description: "Glue Crawler Name"
+    Value: !Ref GlueCrawler
+
+  AthenaWorkGroupName:
+    Description: "Athena Work Group Name"
+    Value: !Ref AthenaWorkGroup
+
