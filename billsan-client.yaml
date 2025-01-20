@@ -98,21 +98,40 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          Effect: Allow
-          Principal:
-            Service:
-              - billingreports.amazonaws.com
-              - bcm-data-exports.amazonaws.com
-          Action:
-            - s3:PutObject
-            - s3:GetBucketPolicy
-          Resource:
-            - !Sub arn:aws:s3:::${DataExportBucket}
-            - !Sub arn:aws:s3:::${DataExportBucket}/*
-          Condition:
-            StringLike:
-              aws:SourceArn:
-                - !Sub arn:aws:bcm-data-exports:${AWS::Region}:${AWS::AccountId}:export/*
+          - Sid: AllowBillingDataExport
+            Effect: Allow
+            Principal:
+              Service:
+                - billingreports.amazonaws.com
+                - bcm-data-exports.amazonaws.com
+            Action:
+              - s3:PutObject
+              - s3:GetBucketPolicy
+            Resource:
+              - !Sub arn:aws:s3:::${DataExportBucket}
+              - !Sub arn:aws:s3:::${DataExportBucket}/*
+            Condition:
+              StringLike:
+                aws:SourceArn:
+                  - !Sub arn:aws:bcm-data-exports:${AWS::Region}:${AWS::AccountId}:export/*
+          - Sid: AllowFromExternalAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - arn:aws:iam::063150541913:role/RHEMS-Google-Workspace-admin
+                - arn:aws:iam::063150541913:role/RHEMS-Google-Workspace-readonly
+                - arn:aws:iam::063150541913:role/BillSan
+            Action:
+              - s3:GetBucketLocation
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:ListBucketMultipartUploads
+              - s3:ListMultipartUploadParts
+              - s3:AbortMultipartUpload
+            Resource:
+              - !Sub arn:aws:s3:::${DataExportBucket}
+              - !Sub arn:aws:s3:::${DataExportBucket}/*
+
 
   #3 Allow access to #1 S3 Bucket 
   AthenaGlueAccessRole:
