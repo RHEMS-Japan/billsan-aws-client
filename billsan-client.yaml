@@ -74,9 +74,6 @@ Mappings:
         ResourceName, ResourceType, ServiceCategory, ServiceName, SkuId,
         SkuPriceId, SubAccountId, SubAccountName, Tags, x_CostCategories,
         x_Discounts, x_Operation, x_ServiceCode, x_UsageType FROM FOCUS_1_0_AWS
-    COH:
-      DefaultQuery: SELECT account_id, action_type, currency_code, current_resource_details, current_resource_summary, current_resource_type, estimated_monthly_cost_after_discount, estimated_monthly_cost_before_discount, estimated_monthly_savings_after_discount, estimated_monthly_savings_before_discount, estimated_savings_percentage_after_discount, estimated_savings_percentage_before_discount, implementation_effort, last_refresh_timestamp, recommendation_id, recommendation_lookback_period_in_days, recommendation_source, recommended_resource_details, recommended_resource_summary, recommended_resource_type, region, resource_arn, restart_needed, rollback_possible, tags
-        FROM COST_OPTIMIZATION_RECOMMENDATIONS
 
 
 Resources:
@@ -132,320 +129,10 @@ Resources:
               - !Sub arn:aws:s3:::${DataExportBucket}
               - !Sub arn:aws:s3:::${DataExportBucket}/*
 
-
-  #3 Allow access to #1 S3 Bucket 
-  AthenaGlueAccessRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub ${AWS::StackName}-athena-glue-AccessRole
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Sid: AllowAssumeRoleFromExternalAccount
-            Effect: Allow
-            Principal:
-              AWS: arn:aws:iam::063150541913:root
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: AthenaGlueAccessPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Sid: AllowAthenaAccess
-                Effect: Allow
-                Action:
-                  - athena:StartQueryExecution
-                  - athena:GetQueryExecution
-                  - athena:GetQueryResults
-                  - athena:ListWorkGroups
-                  - athena:GetWorkGroup
-                  - athena:ListDataCatalogs
-                  - athena:GetDataCatalog
-                Resource: "*"
-              - Sid: AllowGlueCatalogAccess
-                Effect: Allow
-                Action:
-                  - glue:GetDatabase
-                  - glue:GetDatabases
-                  - glue:GetTable
-                  - glue:GetTables
-                  - glue:GetPartition
-                  - glue:GetPartitions
-                  - glue:BatchGetPartition
-                Resource: "*"
-
   ####################################
-  ### Cost Optimization Hub 
+  ### FocAthenaGlueAccessRoleAthenaGlueAccessRoleus
   ####################################
-  #4 Role for Lambda to activate COH
-  LambdaCOHActivateRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub ${AWS::StackName}-ActivarteCOH
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/CostOptimizationHubAdminAccess
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: 
-                - lambda.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: "ExecutionDefault"
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-            - Effect: Allow
-              Action:
-              - logs:CreateLogStream
-              - logs:PutLogEvents
-              - logs:CreateLogGroup
-              Resource:
-              - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-ActivateCOHFunction"
-              - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-ActivateCOHFunction:*"
-              - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-ActivateCOHFunction:*:*"
-
-            - Effect: Allow
-              Action:
-                - iam:GetRole
-                - iam:CreateServiceLinkedRole
-                - iam:DeleteServiceLinkedRole
-                - iam:GetServiceLinkedRoleDeletionStatus
-              Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/bcm-data-exports.amazonaws.com/AWSServiceRoleForBCMDataExports'
-            - Effect: Allow
-              Action:
-                - cost-optimization-hub:GetPreferences
-              Resource: '*' # Cannot restrict this
-  #5 Role for Lambda to Service Linked Role COH
-  LambdaServiceLinkedRoleExecutionRole:
-    Type: 'AWS::IAM::Role'
-    Properties:
-      RoleName: !Sub "${AWS::StackName}-ServiceLinkedRoleCOH"
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: !Sub "${AWS::StackName}-LambdaPolicy"
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource:
-                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-CreateServiceLinkedRoleFunction"
-                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-CreateServiceLinkedRoleFunction:*"
-                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-CreateServiceLinkedRoleFunction:*:*"
-              - Effect: Allow
-                Action:
-                  - iam:GetRole
-                  - iam:CreateServiceLinkedRole
-                  - iam:DeleteServiceLinkedRole
-                  - iam:GetServiceLinkedRoleDeletionStatus
-                Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/bcm-data-exports.amazonaws.com/AWSServiceRoleForBCMDataExports'
-              - Effect: Allow
-                Action:
-                  - cost-optimization-hub:GetPreferences
-                Resource: '*' # Cannot restrict this
-  #
-  # lambda response sample
-  # {
-  #     "Status": "SUCCESS",
-  #     "Reason": "See the details in CloudWatch Log Stream: 2024/12/29/[$LATEST]418c5b05afeb4f57b2f57434f74c3bdd",
-  #     "PhysicalResourceId": "ae1f76f5-c618-11ef-b1a3-774ad4214007",
-  #     "StackId": "arn:aws:cloudformation:us-east-1:507011107728:stack/rhems-billsan4/3caa1930-c618-11ef-a2c5-0affd1fee9b1",
-  #     "RequestId": "a2d2bdfa-5efc-4494-aac6-4b737ea88b09",
-  #     "LogicalResourceId": "LambdaCOHActivateExec",
-  #     "NoEcho": false,
-  #     "Data": {}
-  # }
-  #
-  #6 Lambda function to activate COH. Use #3
-  LambdaCOHActivateFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: !Sub ${AWS::StackName}-ActivateCOHFunction
-      Handler: index.lambda_handler
-      MemorySize: 128
-      Runtime: python3.12
-      Timeout: 15
-      Role: !GetAtt LambdaCOHActivateRole.Arn
-      Code:
-        ZipFile: |
-          import boto3
-          import cfnresponse
-          import uuid
-
-          def lambda_handler(event, context):
-            reason = ""
-            try:
-              request_type = event.get("RequestType", "")
-              print(f"RequestType: {request_type}")
-
-              if request_type == "Create":
-                coh = boto3.client('cost-optimization-hub', region_name='us-east-1')
-                response = coh.update_enrollment_status(
-                    status='Active',
-                    includeMemberAccounts=True
-                )
-              elif request_type == "Update":
-                print("Delete request received. No action required.")
-              elif request_type == "Delete":
-                print("Delete request received. No action required.")
-              else:
-                print("Unknown request type received. No action required.")
-
-            except Exception as e:
-                reason = str(e)
-                print("Exception occurred:", reason)
-            finally:
-                physicalResourceId = event.get('ResourceProperties',{}).get('Export', {}).get('Name', None) or str(uuid.uuid1())
-                if reason:
-                    print("FAILURE")
-                    cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId, reason=reason)
-                else:
-                    print("SUCCESS")
-                    cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, physicalResourceId)
-  #7 Service linked role for COH. Use #4
-  LambdaCOHServiceLinkedRoleFunction:
-    Type: 'AWS::Lambda::Function'
-    Properties:
-      FunctionName: !Sub "${AWS::StackName}-CreateServiceLinkedRoleFunction"
-      Handler: index.lambda_handler
-      MemorySize: 128
-      Runtime: python3.12
-      Timeout: 15
-      Role: !GetAtt LambdaServiceLinkedRoleExecutionRole.Arn
-      Code:
-        ZipFile: |
-          import json
-          import time
-          import boto3
-          import cfnresponse
-
-          def lambda_handler(event, context):
-              print(json.dumps(event))
-              coh = boto3.client('cost-optimization-hub', region_name='us-east-1')
-              iam = boto3.client('iam')
-              try:
-                  if event['RequestType'] in ['Create', 'Update']:
-
-                      print("Creating service linked role")
-                      iam.create_service_linked_role(
-                          AWSServiceName='bcm-data-exports.amazonaws.com',
-                          Description='Service-linked role for bcm-data-exports.amazonaws.com'
-                      )
-
-                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
-
-              except Exception as e:
-                  if 'has been taken in this account' in str(e):
-                      print('the role AWSServiceRoleForBCMDataExports already exist')
-                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
-                  else:
-                      print(e)
-                      cfnresponse.send(event, context, cfnresponse.FAILED, {}, reason=str(e))
-  # Request JSON sample
-  # {
-  #    "RequestType" : "Create",
-  #    "RequestId" : "unique id for this create request",
-  #    "ResponseURL" : "pre-signed-url-for-create-response",
-  #    "ResourceType" : "Custom::MyCustomResourceType",
-  #    "LogicalResourceId" : "name of resource in template",
-  #    "StackId" : "arn:aws:cloudformation:us-west-2:123456789012:stack/mystack/5b918d10-cd98-11ea-90d5-0a9cd3354c10",
-  #    "ResourceProperties" : {
-  #       "key1" : "string",
-  #       "key2" : [ "list" ],
-  #       "key3" : { "key4" : "map" }
-  #    }
-  # }
-  #
-  #8 Lambda function Execute to activate COH
-  LambdaCOHActivateExec:
-    Type: AWS::CloudFormation::CustomResource
-    Properties:
-      ServiceToken: !GetAtt LambdaCOHActivateFunction.Arn
-      ServiceTimeout: 60
-  #9 Lambda function Execute to Service Linked Role COH
-  LambdaCOHServiceLinkedRoleExec:
-    Type: AWS::CloudFormation::CustomResource
-    Properties:
-      ServiceToken: !GetAtt LambdaCOHServiceLinkedRoleFunction.Arn
-      ServiceTimeout: 60
-  #
-  #10 Deploy Data Export for Cost Optimization Hub Parquet
-  BillingDataExportCOHParquet:
-    Type: AWS::BCMDataExports::Export
-    DependsOn:
-      - S3BucketPolicy
-      - LambdaCOHActivateExec
-      - LambdaCOHServiceLinkedRoleExec
-    Properties:
-      Export:
-        Name: !Sub billsan-aws-${AWS::AccountId}-optimization-parquet
-        DataQuery:
-          QueryStatement: !FindInMap [DataExports, COH, DefaultQuery]
-          TableConfigurations:
-            COST_OPTIMIZATION_RECOMMENDATIONS:
-              FILTER: '{}'
-              INCLUDE_ALL_RECOMMENDATIONS: 'TRUE'
-        Description: "Cost Optimization Hub Recommendations export for aggregation in CID"
-        DestinationConfigurations:
-          S3Destination:
-            S3Bucket: !Ref DataExportBucket
-            S3Region: !Ref AWS::Region
-            S3Prefix: optimazation/parquet
-            S3OutputConfigurations:
-              Overwrite: OVERWRITE_REPORT
-              Format: "PARQUET"
-              Compression: "PARQUET"
-              OutputType: "CUSTOM"
-        RefreshCadence:
-          Frequency: "SYNCHRONOUS"
-  #11 Deploy Data Export for Cost Optimization Hub CSV
-  BillingDataExportCOHCSV:
-    Type: AWS::BCMDataExports::Export
-    DependsOn:
-      - S3BucketPolicy
-      - LambdaCOHActivateExec
-      - LambdaCOHServiceLinkedRoleExec
-    Properties:
-      Export:
-        Name: !Sub billsan-aws-${AWS::AccountId}-optimization-csv
-        DataQuery:
-          QueryStatement: !FindInMap [DataExports, COH, DefaultQuery]
-          TableConfigurations:
-            COST_OPTIMIZATION_RECOMMENDATIONS:
-              FILTER: '{}'
-              INCLUDE_ALL_RECOMMENDATIONS: 'TRUE'
-        Description: "Cost Optimization Hub Recommendations export for aggregation in CID"
-        DestinationConfigurations:
-          S3Destination:
-            S3Bucket: !Ref DataExportBucket
-            S3Region: !Ref AWS::Region
-            S3Prefix: optimazation/parquet
-            S3OutputConfigurations:
-              Overwrite: OVERWRITE_REPORT
-              Format: TEXT_OR_CSV
-              Compression: GZIP
-              OutputType: CUSTOM
-        RefreshCadence:
-          Frequency: SYNCHRONOUS
-  
-
-  ####################################
-  ### Focus
-  ####################################
-  #12 Deploy Data Export for Focus parquet
+  #3 Deploy Data Export for Focus parquet
   BillingDataExportFocusParquet:
     Type: AWS::BCMDataExports::Export
     DependsOn: S3BucketPolicy
@@ -469,7 +156,7 @@ Resources:
               Format: PARQUET
               OutputType: CUSTOM
               Overwrite: OVERWRITE_REPORT
-  #13 Deploy Data Export for Focus CSV
+  #4 Deploy Data Export for Focus CSV
   BillingDataExportFocusCSV:
     Type: AWS::BCMDataExports::Export
     Properties:
@@ -498,7 +185,7 @@ Resources:
   ####################################
   ### CUR 2.0
   ####################################
-  #14 Deploy Data Export for CUR 2.0 parquet
+  #5 Deploy Data Export for CUR 2.0 parquet
   BillingDataExportCUR2Parquet:
     Type: AWS::BCMDataExports::Export
     DependsOn: S3BucketPolicy
@@ -529,7 +216,7 @@ Resources:
         Name: !Sub billsan-aws-${AWS::AccountId}-cur2-parquet
         RefreshCadence:
           Frequency: SYNCHRONOUS
-  #15 Deploy Data Export for CUR 2.0 CSV
+  #6 Deploy Data Export for CUR 2.0 CSV
   BillingDataExportCUR2CSV:
     Type: AWS::BCMDataExports::Export
     DependsOn: S3BucketPolicy

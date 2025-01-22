@@ -1,0 +1,562 @@
+Mappings:
+  DataExports:
+    CUR2:
+      DefaultQuery: SELECT bill_bill_type, bill_billing_entity,
+        bill_billing_period_end_date, bill_billing_period_start_date,
+        bill_invoice_id, bill_invoicing_entity, bill_payer_account_id,
+        bill_payer_account_name, cost_category, discount,
+        discount_bundled_discount, discount_total_discount,
+        identity_line_item_id, identity_time_interval,
+        line_item_availability_zone, line_item_blended_cost,
+        line_item_blended_rate, line_item_currency_code, line_item_legal_entity,
+        line_item_line_item_description, line_item_line_item_type,
+        line_item_net_unblended_cost, line_item_net_unblended_rate,
+        line_item_normalization_factor, line_item_normalized_usage_amount,
+        line_item_operation, line_item_product_code, line_item_resource_id,
+        line_item_tax_type, line_item_unblended_cost, line_item_unblended_rate,
+        line_item_usage_account_id, line_item_usage_account_name,
+        line_item_usage_amount, line_item_usage_end_date,
+        line_item_usage_start_date, line_item_usage_type, pricing_currency,
+        pricing_lease_contract_length, pricing_offering_class,
+        pricing_public_on_demand_cost, pricing_public_on_demand_rate,
+        pricing_purchase_option, pricing_rate_code, pricing_rate_id,
+        pricing_term, pricing_unit, product, product_comment, product_fee_code,
+        product_fee_description, product_from_location,
+        product_from_location_type, product_from_region_code,
+        product_instance_family, product_instance_type, product_instancesku,
+        product_location, product_location_type, product_operation,
+        product_pricing_unit, product_product_family, product_region_code,
+        product_servicecode, product_sku, product_to_location,
+        product_to_location_type, product_to_region_code, product_usagetype,
+        reservation_amortized_upfront_cost_for_usage,
+        reservation_amortized_upfront_fee_for_billing_period,
+        reservation_availability_zone, reservation_effective_cost,
+        reservation_end_time, reservation_modification_status,
+        reservation_net_amortized_upfront_cost_for_usage,
+        reservation_net_amortized_upfront_fee_for_billing_period,
+        reservation_net_effective_cost, reservation_net_recurring_fee_for_usage,
+        reservation_net_unused_amortized_upfront_fee_for_billing_period,
+        reservation_net_unused_recurring_fee, reservation_net_upfront_value,
+        reservation_normalized_units_per_reservation,
+        reservation_number_of_reservations, reservation_recurring_fee_for_usage,
+        reservation_reservation_a_r_n, reservation_start_time,
+        reservation_subscription_id,
+        reservation_total_reserved_normalized_units,
+        reservation_total_reserved_units, reservation_units_per_reservation,
+        reservation_unused_amortized_upfront_fee_for_billing_period,
+        reservation_unused_normalized_unit_quantity,
+        reservation_unused_quantity, reservation_unused_recurring_fee,
+        reservation_upfront_value, resource_tags,
+        savings_plan_amortized_upfront_commitment_for_billing_period,
+        savings_plan_end_time, savings_plan_instance_type_family,
+        savings_plan_net_amortized_upfront_commitment_for_billing_period,
+        savings_plan_net_recurring_commitment_for_billing_period,
+        savings_plan_net_savings_plan_effective_cost,
+        savings_plan_offering_type, savings_plan_payment_option,
+        savings_plan_purchase_term,
+        savings_plan_recurring_commitment_for_billing_period,
+        savings_plan_region, savings_plan_savings_plan_a_r_n,
+        savings_plan_savings_plan_effective_cost,
+        savings_plan_savings_plan_rate, savings_plan_start_time,
+        savings_plan_total_commitment_to_date, savings_plan_used_commitment FROM
+        COST_AND_USAGE_REPORT
+    Focus:
+      DefaultQuery: SELECT AvailabilityZone, BilledCost, BillingAccountId,
+        BillingAccountName, BillingCurrency, BillingPeriodEnd,
+        BillingPeriodStart, ChargeCategory, ChargeClass, ChargeDescription,
+        ChargeFrequency, ChargePeriodEnd, ChargePeriodStart,
+        CommitmentDiscountCategory, CommitmentDiscountId,
+        CommitmentDiscountName, CommitmentDiscountStatus,
+        CommitmentDiscountType, ConsumedQuantity, ConsumedUnit, ContractedCost,
+        ContractedUnitPrice, EffectiveCost, InvoiceIssuerName, ListCost,
+        ListUnitPrice, PricingCategory, PricingQuantity, PricingUnit,
+        ProviderName, PublisherName, RegionId, RegionName, ResourceId,
+        ResourceName, ResourceType, ServiceCategory, ServiceName, SkuId,
+        SkuPriceId, SubAccountId, SubAccountName, Tags, x_CostCategories,
+        x_Discounts, x_Operation, x_ServiceCode, x_UsageType FROM FOCUS_1_0_AWS
+    COH:
+      DefaultQuery: SELECT account_id, action_type, currency_code, current_resource_details, current_resource_summary, current_resource_type, estimated_monthly_cost_after_discount, estimated_monthly_cost_before_discount, estimated_monthly_savings_after_discount, estimated_monthly_savings_before_discount, estimated_savings_percentage_after_discount, estimated_savings_percentage_before_discount, implementation_effort, last_refresh_timestamp, recommendation_id, recommendation_lookback_period_in_days, recommendation_source, recommended_resource_details, recommended_resource_summary, recommended_resource_type, region, resource_arn, restart_needed, rollback_possible, tags
+        FROM COST_OPTIMIZATION_RECOMMENDATIONS
+
+
+Resources:
+
+  #1: S3 Bucket to save all billing data export data
+  DataExportBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub billsan-aws-${AWS::AccountId}
+      PublicAccessBlockConfiguration:
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  #2  #1 S3 Bucket Policy for allow data export
+  S3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DataExportBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowBillingDataExport
+            Effect: Allow
+            Principal:
+              Service:
+                - billingreports.amazonaws.com
+                - bcm-data-exports.amazonaws.com
+            Action:
+              - s3:PutObject
+              - s3:GetBucketPolicy
+            Resource:
+              - !Sub arn:aws:s3:::${DataExportBucket}
+              - !Sub arn:aws:s3:::${DataExportBucket}/*
+            Condition:
+              StringLike:
+                aws:SourceArn:
+                  - !Sub arn:aws:bcm-data-exports:${AWS::Region}:${AWS::AccountId}:export/*
+          - Sid: AllowFromExternalAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - arn:aws:iam::063150541913:role/RHEMS-Google-Workspace-admin
+                - arn:aws:iam::063150541913:role/RHEMS-Google-Workspace-readonly
+                - arn:aws:iam::063150541913:role/BillSan
+            Action:
+              - s3:GetBucketLocation
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:ListBucketMultipartUploads
+              - s3:ListMultipartUploadParts
+              - s3:AbortMultipartUpload
+            Resource:
+              - !Sub arn:aws:s3:::${DataExportBucket}
+              - !Sub arn:aws:s3:::${DataExportBucket}/*
+
+
+  #3 Allow access to #1 S3 Bucket 
+  AthenaGlueAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-athena-glue-AccessRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowAssumeRoleFromExternalAccount
+            Effect: Allow
+            Principal:
+              AWS: arn:aws:iam::063150541913:root
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AthenaGlueAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AllowAthenaAccess
+                Effect: Allow
+                Action:
+                  - athena:StartQueryExecution
+                  - athena:GetQueryExecution
+                  - athena:GetQueryResults
+                  - athena:ListWorkGroups
+                  - athena:GetWorkGroup
+                  - athena:ListDataCatalogs
+                  - athena:GetDataCatalog
+                Resource: "*"
+              - Sid: AllowGlueCatalogAccess
+                Effect: Allow
+                Action:
+                  - glue:GetDatabase
+                  - glue:GetDatabases
+                  - glue:GetTable
+                  - glue:GetTables
+                  - glue:GetPartition
+                  - glue:GetPartitions
+                  - glue:BatchGetPartition
+                Resource: "*"
+
+  ####################################
+  ### Cost Optimization Hub 
+  ####################################
+  #4 Role for Lambda to activate COH
+  LambdaCOHActivateRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-ActivarteCOH
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CostOptimizationHubAdminAccess
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: "ExecutionDefault"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:CreateLogGroup
+              Resource:
+              - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-ActivateCOHFunction"
+              - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-ActivateCOHFunction:*"
+              - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-ActivateCOHFunction:*:*"
+
+            - Effect: Allow
+              Action:
+                - iam:GetRole
+                - iam:CreateServiceLinkedRole
+                - iam:DeleteServiceLinkedRole
+                - iam:GetServiceLinkedRoleDeletionStatus
+              Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/bcm-data-exports.amazonaws.com/AWSServiceRoleForBCMDataExports'
+            - Effect: Allow
+              Action:
+                - cost-optimization-hub:GetPreferences
+              Resource: '*' # Cannot restrict this
+  #5 Role for Lambda to Service Linked Role COH
+  LambdaServiceLinkedRoleExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-ServiceLinkedRoleCOH"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub "${AWS::StackName}-LambdaPolicy"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-CreateServiceLinkedRoleFunction"
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-CreateServiceLinkedRoleFunction:*"
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-CreateServiceLinkedRoleFunction:*:*"
+              - Effect: Allow
+                Action:
+                  - iam:GetRole
+                  - iam:CreateServiceLinkedRole
+                  - iam:DeleteServiceLinkedRole
+                  - iam:GetServiceLinkedRoleDeletionStatus
+                Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/bcm-data-exports.amazonaws.com/AWSServiceRoleForBCMDataExports'
+              - Effect: Allow
+                Action:
+                  - cost-optimization-hub:GetPreferences
+                Resource: '*' # Cannot restrict this
+  #
+  # lambda response sample
+  # {
+  #     "Status": "SUCCESS",
+  #     "Reason": "See the details in CloudWatch Log Stream: 2024/12/29/[$LATEST]418c5b05afeb4f57b2f57434f74c3bdd",
+  #     "PhysicalResourceId": "ae1f76f5-c618-11ef-b1a3-774ad4214007",
+  #     "StackId": "arn:aws:cloudformation:us-east-1:507011107728:stack/rhems-billsan4/3caa1930-c618-11ef-a2c5-0affd1fee9b1",
+  #     "RequestId": "a2d2bdfa-5efc-4494-aac6-4b737ea88b09",
+  #     "LogicalResourceId": "LambdaCOHActivateExec",
+  #     "NoEcho": false,
+  #     "Data": {}
+  # }
+  #
+  #6 Lambda function to activate COH. Use #3
+  LambdaCOHActivateFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-ActivateCOHFunction
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Runtime: python3.12
+      Timeout: 15
+      Role: !GetAtt LambdaCOHActivateRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import uuid
+
+          def lambda_handler(event, context):
+            reason = ""
+            try:
+              request_type = event.get("RequestType", "")
+              print(f"RequestType: {request_type}")
+
+              if request_type == "Create":
+                coh = boto3.client('cost-optimization-hub', region_name='us-east-1')
+                response = coh.update_enrollment_status(
+                    status='Active',
+                    includeMemberAccounts=True
+                )
+              elif request_type == "Update":
+                print("Delete request received. No action required.")
+              elif request_type == "Delete":
+                print("Delete request received. No action required.")
+              else:
+                print("Unknown request type received. No action required.")
+
+            except Exception as e:
+                reason = str(e)
+                print("Exception occurred:", reason)
+            finally:
+                physicalResourceId = event.get('ResourceProperties',{}).get('Export', {}).get('Name', None) or str(uuid.uuid1())
+                if reason:
+                    print("FAILURE")
+                    cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId, reason=reason)
+                else:
+                    print("SUCCESS")
+                    cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, physicalResourceId)
+  #7 Service linked role for COH. Use #4
+  LambdaCOHServiceLinkedRoleFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-CreateServiceLinkedRoleFunction"
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Runtime: python3.12
+      Timeout: 15
+      Role: !GetAtt LambdaServiceLinkedRoleExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import time
+          import boto3
+          import cfnresponse
+
+          def lambda_handler(event, context):
+              print(json.dumps(event))
+              coh = boto3.client('cost-optimization-hub', region_name='us-east-1')
+              iam = boto3.client('iam')
+              try:
+                  if event['RequestType'] in ['Create', 'Update']:
+
+                      print("Creating service linked role")
+                      iam.create_service_linked_role(
+                          AWSServiceName='bcm-data-exports.amazonaws.com',
+                          Description='Service-linked role for bcm-data-exports.amazonaws.com'
+                      )
+
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+
+              except Exception as e:
+                  if 'has been taken in this account' in str(e):
+                      print('the role AWSServiceRoleForBCMDataExports already exist')
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                  else:
+                      print(e)
+                      cfnresponse.send(event, context, cfnresponse.FAILED, {}, reason=str(e))
+  # Request JSON sample
+  # {
+  #    "RequestType" : "Create",
+  #    "RequestId" : "unique id for this create request",
+  #    "ResponseURL" : "pre-signed-url-for-create-response",
+  #    "ResourceType" : "Custom::MyCustomResourceType",
+  #    "LogicalResourceId" : "name of resource in template",
+  #    "StackId" : "arn:aws:cloudformation:us-west-2:123456789012:stack/mystack/5b918d10-cd98-11ea-90d5-0a9cd3354c10",
+  #    "ResourceProperties" : {
+  #       "key1" : "string",
+  #       "key2" : [ "list" ],
+  #       "key3" : { "key4" : "map" }
+  #    }
+  # }
+  #
+  #8 Lambda function Execute to activate COH
+  LambdaCOHActivateExec:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt LambdaCOHActivateFunction.Arn
+      ServiceTimeout: 60
+  #9 Lambda function Execute to Service Linked Role COH
+  LambdaCOHServiceLinkedRoleExec:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt LambdaCOHServiceLinkedRoleFunction.Arn
+      ServiceTimeout: 60
+  #
+  #10 Deploy Data Export for Cost Optimization Hub Parquet
+  BillingDataExportCOHParquet:
+    Type: AWS::BCMDataExports::Export
+    DependsOn:
+      - S3BucketPolicy
+      - LambdaCOHActivateExec
+      - LambdaCOHServiceLinkedRoleExec
+    Properties:
+      Export:
+        Name: !Sub billsan-aws-${AWS::AccountId}-optimization-parquet
+        DataQuery:
+          QueryStatement: !FindInMap [DataExports, COH, DefaultQuery]
+          TableConfigurations:
+            COST_OPTIMIZATION_RECOMMENDATIONS:
+              FILTER: '{}'
+              INCLUDE_ALL_RECOMMENDATIONS: 'TRUE'
+        Description: "Cost Optimization Hub Recommendations export for aggregation in CID"
+        DestinationConfigurations:
+          S3Destination:
+            S3Bucket: !Ref DataExportBucket
+            S3Region: !Ref AWS::Region
+            S3Prefix: optimazation/parquet
+            S3OutputConfigurations:
+              Overwrite: OVERWRITE_REPORT
+              Format: "PARQUET"
+              Compression: "PARQUET"
+              OutputType: "CUSTOM"
+        RefreshCadence:
+          Frequency: "SYNCHRONOUS"
+  #11 Deploy Data Export for Cost Optimization Hub CSV
+  BillingDataExportCOHCSV:
+    Type: AWS::BCMDataExports::Export
+    DependsOn:
+      - S3BucketPolicy
+      - LambdaCOHActivateExec
+      - LambdaCOHServiceLinkedRoleExec
+    Properties:
+      Export:
+        Name: !Sub billsan-aws-${AWS::AccountId}-optimization-csv
+        DataQuery:
+          QueryStatement: !FindInMap [DataExports, COH, DefaultQuery]
+          TableConfigurations:
+            COST_OPTIMIZATION_RECOMMENDATIONS:
+              FILTER: '{}'
+              INCLUDE_ALL_RECOMMENDATIONS: 'TRUE'
+        Description: "Cost Optimization Hub Recommendations export for aggregation in CID"
+        DestinationConfigurations:
+          S3Destination:
+            S3Bucket: !Ref DataExportBucket
+            S3Region: !Ref AWS::Region
+            S3Prefix: optimazation/parquet
+            S3OutputConfigurations:
+              Overwrite: OVERWRITE_REPORT
+              Format: TEXT_OR_CSV
+              Compression: GZIP
+              OutputType: CUSTOM
+        RefreshCadence:
+          Frequency: SYNCHRONOUS
+  
+
+  ####################################
+  ### Focus
+  ####################################
+  #12 Deploy Data Export for Focus parquet
+  BillingDataExportFocusParquet:
+    Type: AWS::BCMDataExports::Export
+    DependsOn: S3BucketPolicy
+    Properties:
+      Export:
+        Name: !Sub billsan-aws-${AWS::AccountId}-focus-parquet
+        RefreshCadence:
+          Frequency: SYNCHRONOUS
+        DataQuery:
+          QueryStatement: !FindInMap
+            - DataExports
+            - Focus
+            - DefaultQuery
+        DestinationConfigurations:
+          S3Destination:
+            S3Bucket: !Ref DataExportBucket
+            S3Region: !Sub ${AWS::Region}
+            S3Prefix: focus/parquet
+            S3OutputConfigurations:
+              Compression: PARQUET
+              Format: PARQUET
+              OutputType: CUSTOM
+              Overwrite: OVERWRITE_REPORT
+  #13 Deploy Data Export for Focus CSV
+  BillingDataExportFocusCSV:
+    Type: AWS::BCMDataExports::Export
+    Properties:
+      Export:
+        Name: !Sub billsan-aws-${AWS::AccountId}-focus-csv
+        RefreshCadence:
+          Frequency: SYNCHRONOUS
+        DataQuery:
+          QueryStatement: !FindInMap
+            - DataExports
+            - Focus
+            - DefaultQuery
+        DestinationConfigurations:
+          S3Destination:
+            S3Bucket: !Ref DataExportBucket
+            S3Region: !Sub ${AWS::Region}
+            S3Prefix: focus/csv
+            S3OutputConfigurations:
+              Compression: GZIP
+              Format: TEXT_OR_CSV
+              OutputType: CUSTOM
+              Overwrite: OVERWRITE_REPORT
+    DependsOn: S3BucketPolicy
+
+
+  ####################################
+  ### CUR 2.0
+  ####################################
+  #14 Deploy Data Export for CUR 2.0 parquet
+  BillingDataExportCUR2Parquet:
+    Type: AWS::BCMDataExports::Export
+    DependsOn: S3BucketPolicy
+    Properties:
+      Export:
+        DataQuery:
+          QueryStatement: !FindInMap
+            - DataExports
+            - CUR2
+            - DefaultQuery
+          TableConfigurations:
+            COST_AND_USAGE_REPORT:
+              TIME_GRANULARITY: HOURLY
+              INCLUDE_RESOURCES: 'TRUE'
+              INCLUDE_MANUAL_DISCOUNT_COMPATIBILITY: 'FALSE'
+              INCLUDE_SPLIT_COST_ALLOCATION_DATA: 'FALSE'
+        Description: CUR 2.0 export for aggregation in CID
+        DestinationConfigurations:
+          S3Destination:
+            S3Bucket: !Ref DataExportBucket
+            S3Region: !Sub ${AWS::Region}
+            S3Prefix: cur2.0/parquet
+            S3OutputConfigurations:
+              Overwrite: OVERWRITE_REPORT
+              Format: PARQUET
+              Compression: PARQUET
+              OutputType: CUSTOM
+        Name: !Sub billsan-aws-${AWS::AccountId}-cur2-parquet
+        RefreshCadence:
+          Frequency: SYNCHRONOUS
+  #15 Deploy Data Export for CUR 2.0 CSV
+  BillingDataExportCUR2CSV:
+    Type: AWS::BCMDataExports::Export
+    DependsOn: S3BucketPolicy
+    Properties:
+      Export:
+        DataQuery:
+          QueryStatement: !FindInMap
+            - DataExports
+            - CUR2
+            - DefaultQuery
+          TableConfigurations:
+            COST_AND_USAGE_REPORT:
+              TIME_GRANULARITY: HOURLY
+              INCLUDE_RESOURCES: 'TRUE'
+              INCLUDE_MANUAL_DISCOUNT_COMPATIBILITY: 'FALSE'
+              INCLUDE_SPLIT_COST_ALLOCATION_DATA: 'FALSE'
+        Description: CUR 2.0 export for aggregation in CID
+        DestinationConfigurations:
+          S3Destination:
+            S3Bucket: !Ref DataExportBucket
+            S3Region: !Sub ${AWS::Region}
+            S3Prefix: cur2.0/csv
+            S3OutputConfigurations:
+              Overwrite: OVERWRITE_REPORT
+              Format: TEXT_OR_CSV
+              Compression: GZIP
+              OutputType: CUSTOM
+        Name: !Sub billsan-aws-${AWS::AccountId}-cur2-csv
+        RefreshCadence:
+          Frequency: SYNCHRONOUS
