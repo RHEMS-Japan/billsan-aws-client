@@ -74,28 +74,131 @@ Mappings:
         ResourceName, ResourceType, ServiceCategory, ServiceName, SkuId,
         SkuPriceId, SubAccountId, SubAccountName, Tags, x_CostCategories,
         x_Discounts, x_Operation, x_ServiceCode, x_UsageType FROM FOCUS_1_0_AWS
-
+    COH:
+      DefaultQuery: SELECT account_id, action_type, currency_code, current_resource_details, current_resource_summary, current_resource_type, estimated_monthly_cost_after_discount, estimated_monthly_cost_before_discount, estimated_monthly_savings_after_discount, estimated_monthly_savings_before_discount, estimated_savings_percentage_after_discount, estimated_savings_percentage_before_discount, implementation_effort, last_refresh_timestamp, recommendation_id, recommendation_lookback_period_in_days, recommendation_source, recommended_resource_details, recommended_resource_summary, recommended_resource_type, region, resource_arn, restart_needed, rollback_possible, tags
+        FROM COST_OPTIMIZATION_RECOMMENDATIONS
 
 Resources:
 
   #1: S3 Bucket to save all billing data export data
-  DataExportBucket:
-    Type: AWS::S3::Bucket
+  DataExportBucketCreateExec:
+    Type: AWS::CloudFormation::CustomResource
     Properties:
-      BucketName: !Sub billsan-aws-${AWS::AccountId}
-      PublicAccessBlockConfiguration:
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
+      ServiceToken: !GetAtt CreateBucketFunction.Arn
+      ServiceTimeout: 60
 
-  #2  #1 S3 Bucket Policy for allow data export
+  #2: Lambda function to create S3 bucket if it doesn't exist
+  CreateBucketFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Creates S3 bucket if it doesn't exist
+      Handler: index.handler
+      Runtime: python3.12
+      Role: !GetAtt CreateBucketRole.Arn
+      Timeout: 30
+      Environment:
+        Variables:
+          BUCKET_NAME: !Sub billsan-aws-${AWS::AccountId}
+          SLACK_WEBHOOK_URL: "https://hooks.slack.com/services/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"
+      Layers:
+        - arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-requests:11  # include requests
+      Code:
+        ZipFile: |
+          import json
+          import cfnresponse
+          import boto3
+          import os
+          import requests
+
+          def send_slack_notification(message):
+            webhook_url = os.environ['SLACK_WEBHOOK_URL']
+            slack_data = {'text': message}
+            response = requests.post(
+              webhook_url, data=json.dumps(slack_data),
+              headers={'Content-Type': 'application/json'}
+            )
+            if response.status_code != 200:
+              raise ValueError(
+                'Request to slack returned an error %s, the response is:\n%s'
+                % (response.status_code, response.text)
+              )
+
+          def get_account_id():
+            sts = boto3.client('sts')
+            return sts.get_caller_identity()["Account"]
+
+          def handler(event, context):
+            reason = ""
+            print(json.dumps(event))
+            status = cfnresponse.SUCCESS
+            account_id = get_account_id()
+            region = 'us-east-1'
+
+            try:
+              if event['RequestType'] == 'Create':
+                s3 = boto3.client('s3')
+                bucket_name = os.environ['BUCKET_NAME']
+                response = s3.list_buckets()
+                buckets = [bucket['Name'] for bucket in response['Buckets']]
+                if bucket_name not in buckets:
+                  s3.create_bucket(Bucket=bucket_name)
+                  s3.put_public_access_block(
+                    Bucket=bucket_name,
+                    PublicAccessBlockConfiguration={
+                      'IgnorePublicAcls': True,
+                      'RestrictPublicBuckets': True
+                    }
+                  )
+                  print(f"Bucket {bucket_name} created.")
+                  send_slack_notification(f"S3 Bucket {bucket_name} created successfully.")
+                else:
+                  print(f"Bucket {bucket_name} already exists. Skipping creation.")
+                  send_slack_notification(f"S3 Bucket {bucket_name} already exists. Skipping creation.")
+              else:
+                print("RequestType is not Create. No action required.")
+            except Exception as e:
+              reason = str(e)
+              print(f"Exception occurred in account {account_id}: {e}")
+              send_slack_notification(f"Exception occurred in account {account_id}: {e}")
+              status = cfnresponse.FAILED
+            finally:
+              cfnresponse.send(event, context, status, {}, reason)
+  #3: IAM role for CreateBucketFunction 
+  CreateBucketRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: lambda-createbucket
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:ListAllMyBuckets
+                  - s3:CreateBucket
+                  - s3:PutBucketPublicAccessBlock 
+                Resource: "*"
+
+  #4  #1 S3 Bucket Policy for allow data export
   S3BucketPolicy:
     Type: AWS::S3::BucketPolicy
+    DependsOn: DataExportBucketCreateExec
     Properties:
-      Bucket: !Ref DataExportBucket
+      Bucket: !Sub billsan-aws-${AWS::AccountId}
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: AllowBillingDataExport
+          - Sid: EnableAWSDataExportsToWriteToS3AndCheckPolicy
             Effect: Allow
             Principal:
               Service:
@@ -105,12 +208,15 @@ Resources:
               - s3:PutObject
               - s3:GetBucketPolicy
             Resource:
-              - !Sub arn:aws:s3:::${DataExportBucket}
-              - !Sub arn:aws:s3:::${DataExportBucket}/*
+              - !Sub arn:aws:s3:::billsan-aws-${AWS::AccountId}
+              - !Sub arn:aws:s3:::billsan-aws-${AWS::AccountId}/*
             Condition:
               StringLike:
                 aws:SourceArn:
+                  - !Sub arn:aws:cur:${AWS::Region}:${AWS::AccountId}:definition/*
                   - !Sub arn:aws:bcm-data-exports:${AWS::Region}:${AWS::AccountId}:export/*
+                aws:SourceAccount:
+                  - !Sub ${AWS::AccountId}
           - Sid: AllowFromExternalAccount
             Effect: Allow
             Principal:
@@ -126,13 +232,13 @@ Resources:
               - s3:ListMultipartUploadParts
               - s3:AbortMultipartUpload
             Resource:
-              - !Sub arn:aws:s3:::${DataExportBucket}
-              - !Sub arn:aws:s3:::${DataExportBucket}/*
+              - !Sub arn:aws:s3:::billsan-aws-${AWS::AccountId}
+              - !Sub arn:aws:s3:::billsan-aws-${AWS::AccountId}/*
 
   ####################################
-  ### FocAthenaGlueAccessRoleAthenaGlueAccessRoleus
+  ### Focus 1.0
   ####################################
-  #3 Deploy Data Export for Focus parquet
+  #5 Deploy Data Export for Focus parquet
   BillingDataExportFocusParquet:
     Type: AWS::BCMDataExports::Export
     DependsOn: S3BucketPolicy
@@ -148,7 +254,7 @@ Resources:
             - DefaultQuery
         DestinationConfigurations:
           S3Destination:
-            S3Bucket: !Ref DataExportBucket
+            S3Bucket: !Sub billsan-aws-${AWS::AccountId}
             S3Region: !Sub ${AWS::Region}
             S3Prefix: focus/parquet
             S3OutputConfigurations:
@@ -156,9 +262,11 @@ Resources:
               Format: PARQUET
               OutputType: CUSTOM
               Overwrite: OVERWRITE_REPORT
-  #4 Deploy Data Export for Focus CSV
+  
+  #6 Deploy Data Export for Focus CSV
   BillingDataExportFocusCSV:
     Type: AWS::BCMDataExports::Export
+    DependsOn: S3BucketPolicy
     Properties:
       Export:
         Name: !Sub billsan-aws-${AWS::AccountId}-focus-csv
@@ -171,7 +279,7 @@ Resources:
             - DefaultQuery
         DestinationConfigurations:
           S3Destination:
-            S3Bucket: !Ref DataExportBucket
+            S3Bucket: !Sub billsan-aws-${AWS::AccountId}
             S3Region: !Sub ${AWS::Region}
             S3Prefix: focus/csv
             S3OutputConfigurations:
@@ -179,13 +287,12 @@ Resources:
               Format: TEXT_OR_CSV
               OutputType: CUSTOM
               Overwrite: OVERWRITE_REPORT
-    DependsOn: S3BucketPolicy
-
-
+  
+  
   ####################################
   ### CUR 2.0
   ####################################
-  #5 Deploy Data Export for CUR 2.0 parquet
+  #7 Deploy Data Export for CUR 2.0 parquet
   BillingDataExportCUR2Parquet:
     Type: AWS::BCMDataExports::Export
     DependsOn: S3BucketPolicy
@@ -205,7 +312,7 @@ Resources:
         Description: CUR 2.0 export for aggregation in CID
         DestinationConfigurations:
           S3Destination:
-            S3Bucket: !Ref DataExportBucket
+            S3Bucket: !Sub billsan-aws-${AWS::AccountId}
             S3Region: !Sub ${AWS::Region}
             S3Prefix: cur2.0/parquet
             S3OutputConfigurations:
@@ -216,7 +323,8 @@ Resources:
         Name: !Sub billsan-aws-${AWS::AccountId}-cur2-parquet
         RefreshCadence:
           Frequency: SYNCHRONOUS
-  #6 Deploy Data Export for CUR 2.0 CSV
+  
+  #8 Deploy Data Export for CUR 2.0 CSV
   BillingDataExportCUR2CSV:
     Type: AWS::BCMDataExports::Export
     DependsOn: S3BucketPolicy
@@ -236,7 +344,8 @@ Resources:
         Description: CUR 2.0 export for aggregation in CID
         DestinationConfigurations:
           S3Destination:
-            S3Bucket: !Ref DataExportBucket
+            S3Bucket: !Sub arn:aws:s3:::billsan-aws-${AWS::AccountId}
+            S3Bucket: !Sub billsan-aws-${AWS::AccountId}
             S3Region: !Sub ${AWS::Region}
             S3Prefix: cur2.0/csv
             S3OutputConfigurations:
