@@ -81,6 +81,9 @@ Mappings:
 Parameters:
   SlackWebhookURL:
     Type: String
+    Description: "Slack Webhook URL"
+    AllowedPattern: "^https://hooks.slack.com/services/.*"
+    ConstraintDescription: "Slack Webhook URL must start with 'https://hooks.slack.com/services/'"
 
 Resources:
 
