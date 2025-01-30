@@ -99,7 +99,7 @@ Resources:
       Environment:
         Variables:
           BUCKET_NAME: !Sub billsan-aws-${AWS::AccountId}
-          SLACK_WEBHOOK_URL: "https://hooks.slack.com/services/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"
+          SLACK_WEBHOOK_URL: "https://hooks.slack.com/services/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"
       Layers:
         - arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-requests:11  # include requests
       Code:
