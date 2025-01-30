@@ -99,7 +99,7 @@ Resources:
       Environment:
         Variables:
           BUCKET_NAME: !Sub billsan-aws-${AWS::AccountId}
-          SLACK_WEBHOOK_URL: "https://hooks.slack.com/services/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"
+          SLACK_WEBHOOK_URL: "https://hooks.slack.com/services/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"
       Layers:
         - arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-requests:11  # include requests
       Code:
@@ -247,6 +247,7 @@ Resources:
       RoleName: !Sub ${AWS::StackName}-ActivarteCOH
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/CostOptimizationHubAdminAccess
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -255,8 +256,6 @@ Resources:
               Service: 
                 - lambda.amazonaws.com
             Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
         - PolicyName: "ExecutionDefault"
           PolicyDocument:
