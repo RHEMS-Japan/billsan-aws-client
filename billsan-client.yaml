@@ -112,6 +112,7 @@ Resources:
 
           def send_slack_notification(message):
             webhook_url = os.environ['SLACK_WEBHOOK_URL']
+            print(f"Webhook URL: {webhook_url}")
             slack_data = {'text': message}
             response = requests.post(
               webhook_url, data=json.dumps(slack_data),
@@ -138,6 +139,7 @@ Resources:
               if event['RequestType'] == 'Create':
                 s3 = boto3.client('s3')
                 bucket_name = os.environ['BUCKET_NAME']
+                print(f"Creating bucket {bucket_name} in account {account_id}")
                 response = s3.list_buckets()
                 buckets = [bucket['Name'] for bucket in response['Buckets']]
                 if bucket_name not in buckets:
