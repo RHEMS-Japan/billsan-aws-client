@@ -158,6 +158,26 @@ Resources:
                       'RestrictPublicBuckets': True
                     }
                   )
+                  # ライフサイクルルールを追加
+                  lifecycle_configuration = {
+                    'Rules': [
+                      {
+                        'ID': 'DeleteNonCurrentVersionsAfterOneYear',
+                        'Status': 'Enabled',
+                        'Filter': {
+                          'Prefix': ''
+                        },
+                        'NoncurrentVersionExpiration': {
+                          'NoncurrentDays': 365
+                        }
+                      }
+                    ]
+                  }
+                  s3.put_bucket_lifecycle_configuration(
+                    Bucket=bucket_name,
+                    LifecycleConfiguration=lifecycle_configuration
+                  )
+                  print(f"Lifecycle rule added to bucket {bucket_name}")
                   print(f"Bucket {bucket_name} created.")
                   send_slack_notification(f"S3 Bucket {bucket_name} created successfully.")
                 else:
@@ -196,6 +216,7 @@ Resources:
                   - s3:ListAllMyBuckets
                   - s3:CreateBucket
                   - s3:PutBucketPublicAccessBlock 
+                  - s3:PutLifecycleConfiguration 
                 Resource: "*"
 
   #4  #1 S3 Bucket Policy for allow data export
