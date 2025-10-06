@@ -7,8 +7,7 @@ orbs:
 main-filter: &main-filter
   filters:
     branches:
-#      only: main
-      only: feature/oidc
+      only: main
 
 jobs:
   deploy-s3:
@@ -23,17 +22,9 @@ jobs:
           role_arn: ${AWS_OIDC_ROLE_ARN}
           role_session_name: circleci-portal-deploy-s3
       - run:
-          name: check aws user
+          name: aws s3 sync
           command: |
-            aws sts get-caller-identity
-      - run:
-          name: aws s3 ls
-          command: |
-            aws s3 ls s3://${S3_BUCKET_NAME}
-#      - run:
-#          name: aws s3 sync
-#          command: |
-#            aws s3 sync . s3://${S3_BUCKET_NAME} --delete --exclude ".git/*" --exclude ".circleci/*"
+            aws s3 sync . s3://${S3_BUCKET_NAME} --delete --exclude ".git/*" --exclude ".circleci/*"
 
 workflows:
   deploy-main:
