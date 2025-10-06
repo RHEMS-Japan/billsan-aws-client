@@ -1,13 +1,14 @@
 version: 2.1
 
 orbs:
-  aws-cli: circleci/aws-cli@4.1.3
-  rj-package: rhems-japan/package@0.0.82
+  aws-cli: circleci/aws-cli@5.4.1
+  rj-package: rhems-japan/package@0.0.83
 
 main-filter: &main-filter
   filters:
     branches:
-      only: main
+#      only: main
+      only: feature/oidc
 
 jobs:
   deploy-s3:
@@ -17,14 +18,26 @@ jobs:
       - checkout
       - add_ssh_keys:
           fingerprints: SHA256:D7K9VjstwPPb++QRHwU87Kvh76gaparnC9FGdWfnBlo
-      - aws-cli/setup
+      - aws-cli/setup:
+          profile_name: WEB_IDENTITY_PROFILE
+          role_arn: ${AWS_OIDC_ROLE_ARN}
+          role_session_name: circleci-portal-deploy-s3
       - run:
-          name: aws s3 sync
+          name: check aws user
           command: |
-            aws s3 sync . s3://${S3_BUCKET_NAME} --delete --exclude ".git/*" --exclude ".circleci/*"
+            aws sts get-caller-identity
+      - run:
+          name: aws s3 ls
+          command: |
+            aws s3 ls s3://${S3_BUCKET_NAME}
+#      - run:
+#          name: aws s3 sync
+#          command: |
+#            aws s3 sync . s3://${S3_BUCKET_NAME} --delete --exclude ".git/*" --exclude ".circleci/*"
 
 workflows:
   deploy-main:
     jobs:
       - deploy-s3:
+          context: billsan-aws-client
           <<: *main-filter
