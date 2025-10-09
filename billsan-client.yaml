@@ -374,7 +374,6 @@ Resources:
         Description: CUR 2.0 export for aggregation in CID
         DestinationConfigurations:
           S3Destination:
-            S3Bucket: !Sub arn:aws:s3:::billsan-aws-${AWS::AccountId}
             S3Bucket: !Sub billsan-aws-${AWS::AccountId}
             S3Region: !Sub ${AWS::Region}
             S3Prefix: cur2.0/csv
