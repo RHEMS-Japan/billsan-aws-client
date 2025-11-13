@@ -183,8 +183,10 @@ Resources:
                       else:
                           print(f"Bucket {bucket_name} already exists. Skipping creation.")
                           send_slack_notification(f"S3 Bucket {bucket_name} already exists. Skipping creation.")
+                  elif event['RequestType'] == 'Delete':
+                      print("Delete request received. Preserving bucket as requested.")
                   else:
-                      print("RequestType is not Create. No action required.")
+                      print("RequestType is not Create or Delete. No action required.")
               except Exception as e:
                   reason = str(e)
                   print(f"Exception occurred in account {account_id}: {e}")
@@ -451,17 +453,17 @@ Resources:
   #9 Lambda function Execute to Service Linked Role COH
   LambdaCOHServiceLinkedRoleExec:
     Type: AWS::CloudFormation::CustomResource
+    DependsOn: LambdaServiceLinkedRoleExecutionRole
     Properties:
       ServiceToken: !GetAtt LambdaCOHServiceLinkedRoleFunction.Arn
       ServiceTimeout: 60
   #10 Lambda function Execute to activate COH
   LambdaCOHActivateExec:
     Type: AWS::CloudFormation::CustomResource
+    DependsOn: LambdaCOHServiceLinkedRoleExec
     Properties:
       ServiceToken: !GetAtt LambdaCOHActivateFunction.Arn
       ServiceTimeout: 60
-    DependsOn:
-      - LambdaCOHServiceLinkedRoleExec
   #
   #11 Deploy Data Export for Cost Optimization Hub Parquet
   BillingDataExportCOHParquet:
