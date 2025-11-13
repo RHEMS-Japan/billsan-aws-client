@@ -251,9 +251,11 @@ Resources:
             Effect: Allow
             Principal:
               AWS:
-                - arn:aws:iam::063150541913:role/RHEMS-Google-Workspace-admin
                 - arn:aws:iam::063150541913:role/RHEMS-Google-Workspace-readonly
                 - arn:aws:iam::063150541913:role/BillSan
+                - arn:aws:iam::063150541913:role/RHEMS-Google-Workspace-admin
+                - arn:aws:iam::063150541913:user/billsan
+                - arn:aws:iam::063150541913:role/RHEMS-SYSTEM-default-20221012143130485700000008
             Action:
               - s3:GetBucketLocation
               - s3:GetObject
