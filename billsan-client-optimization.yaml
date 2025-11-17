@@ -418,11 +418,15 @@ Resources:
               # ServiceName: BCMDataExports
               if event['RequestType'] == 'Create':
               #if event['RequestType'] in ['Create', 'Update']:
-                iam.create_service_linked_role(
-                    AWSServiceName='bcm-data-exports.amazonaws.com',
-                    Description='Service-linked role for bcm-data-exports.amazonaws.com'
-                )
-                print("Service linked role for COH created successfully.")
+                try:
+                  iam.get_role(RoleName='AWSServiceRoleForBCMDataExports')
+                  print("Service linked role for COH already exists. Skipping creation.")
+                except iam.exceptions.NoSuchEntityException:
+                  iam.create_service_linked_role(
+                      AWSServiceName='bcm-data-exports.amazonaws.com',
+                      Description='Service-linked role for bcm-data-exports.amazonaws.com'
+                  )
+                  print("Service linked role for COH created successfully.")
               elif event['RequestType'] == 'Delete':
                 iam.delete_service_linked_role(RoleName='AWSServiceRoleForBCMDataExports')
                 print("Service linked role for COH deleted successfully.")
