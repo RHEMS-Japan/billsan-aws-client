@@ -10,25 +10,34 @@ main-filter: &main-filter
       only: main
 
 jobs:
-  deploy-s3:
+  debug-job:
     docker:
-      - image: cimg/python:3.10.4
+      - image: cimg/base:2023.06-20.04
+    resource_class: small
     steps:
       - checkout
-      - add_ssh_keys:
-          fingerprints: SHA256:D7K9VjstwPPb++QRHwU87Kvh76gaparnC9FGdWfnBlo
-      - aws-cli/setup:
-          profile_name: WEB_IDENTITY_PROFILE
-          role_arn: ${AWS_OIDC_ROLE_ARN}
-          role_session_name: circleci-portal-deploy-s3
-      - run:
-          name: aws s3 sync
-          command: |
-            aws s3 sync . s3://${S3_BUCKET_NAME} --delete --exclude ".git/*" --exclude ".circleci/*"
+#  deploy-s3:
+#    docker:
+#      - image: cimg/python:3.10.4
+#    steps:
+#      - checkout
+#      - add_ssh_keys:
+#          fingerprints: SHA256:D7K9VjstwPPb++QRHwU87Kvh76gaparnC9FGdWfnBlo
+#      - aws-cli/setup:
+#          profile_name: WEB_IDENTITY_PROFILE
+#          role_arn: ${AWS_OIDC_ROLE_ARN}
+#          role_session_name: circleci-portal-deploy-s3
+#      - run:
+#          name: aws s3 sync
+#          command: |
+#            aws s3 sync . s3://${S3_BUCKET_NAME} --delete --exclude ".git/*" --exclude ".circleci/*"
 
 workflows:
-  deploy-main:
+  debug:
     jobs:
-      - deploy-s3:
-          context: billsan-aws-client
-          <<: *main-filter
+      - debug-job
+#  deploy-main:
+#    jobs:
+#      - deploy-s3:
+#          context: billsan-aws-client
+#          <<: *main-filter
