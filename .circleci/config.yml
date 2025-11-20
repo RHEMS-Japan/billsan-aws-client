@@ -35,7 +35,8 @@ jobs:
 workflows:
   debug:
     jobs:
-      - debug-job
+      - debug-job:
+        context: aws-063150541913
 #  deploy-main:
 #    jobs:
 #      - deploy-s3:
